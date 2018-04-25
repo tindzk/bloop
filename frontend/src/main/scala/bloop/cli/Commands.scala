@@ -45,9 +45,11 @@ object Commands {
   ) extends RawCommand
 
   /** List of commands accepting a project as argument, used for autopomcletion */
-  val projectBound = CommandsMessages.messages.collect {
-    case (name, CommandMessages(args, _)) if args.exists(_.name == "project") => name
-  }.mkString(" ")
+  val projectBound = CommandsMessages.messages
+    .collect {
+      case (name, CommandMessages(args, _)) if args.exists(_.name == "project") => name
+    }
+    .mkString(" ")
 
   case class About(
       @Recurse cliOptions: CliOptions = CliOptions.default
@@ -151,6 +153,21 @@ object Commands {
       reporter: ReporterKind = BloopReporter,
       @HelpMessage("The arguments to pass in to the main class.")
       args: List[String] = Nil,
+      @ExtraName("w")
+      @HelpMessage("If set, run the command whenever projects' source files change.")
+      watch: Boolean = false,
+      @Recurse cliOptions: CliOptions = CliOptions.default
+  ) extends CompilingCommand
+
+  case class NativeLink(
+      @ExtraName("p")
+      @HelpMessage("The project to run (will be inferred from remaining cli args).")
+      project: String = "",
+      @ExtraName("m")
+      @HelpMessage("The main class to link. Leave unset to let bloop select automatically.")
+      main: Option[String] = None,
+      @HelpMessage("Pick reporter to show compilation messages. By default, bloop's used.")
+      reporter: ReporterKind = BloopReporter,
       @ExtraName("w")
       @HelpMessage("If set, run the command whenever projects' source files change.")
       watch: Boolean = false,

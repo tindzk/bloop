@@ -5,7 +5,7 @@ import java.util.regex.Pattern
 
 import bloop.DependencyResolution
 import bloop.config.Config
-import bloop.exec.ForkProcess
+import bloop.exec.JavaProcess
 import bloop.io.AbsolutePath
 import bloop.logging.Logger
 import sbt.testing.{AnnotatedFingerprint, EventHandler, Fingerprint, SubclassFingerprint}
@@ -86,7 +86,7 @@ object TestInternals {
    * @param env             The environment properties to run the program with.
    */
   def executeTasks(cwd: AbsolutePath,
-                   fork: ForkProcess,
+                   fork: JavaProcess,
                    discoveredTests: DiscoveredTests,
                    args: List[Config.TestArgument],
                    eventHandler: EventHandler,

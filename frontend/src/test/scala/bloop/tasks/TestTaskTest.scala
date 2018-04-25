@@ -10,7 +10,7 @@ import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 import bloop.Project
 import bloop.engine.{ExecutionContext, State}
-import bloop.exec.{ForkProcess, JavaEnv}
+import bloop.exec.{JavaProcess, JavaEnv}
 import bloop.io.AbsolutePath
 import bloop.reporter.ReporterConfig
 import sbt.testing.Framework
@@ -58,13 +58,13 @@ class TestTaskTest(framework: String) {
     assertEquals(expectedName, withSuffix.get.name)
   }
 
-  private val processRunnerConfig: ForkProcess = {
+  private val processRunnerConfig: JavaProcess = {
     val javaEnv = JavaEnv.default
     val classpath = testProject.classpath
-    ForkProcess(javaEnv, classpath)
+    JavaProcess(javaEnv, classpath)
   }
 
-  private def testLoader(fork: ForkProcess): ClassLoader = {
+  private def testLoader(fork: JavaProcess): ClassLoader = {
     fork.toExecutionClassLoader(Some(TestInternals.filteredLoader))
   }
 

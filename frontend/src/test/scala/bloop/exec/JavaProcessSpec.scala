@@ -12,7 +12,7 @@ import bloop.tasks.TestUtil
 import bloop.tasks.TestUtil.withTemporaryDirectory
 
 @Category(Array(classOf[bloop.FastTests]))
-class ForkProcessSpec {
+class JavaProcessSpec {
 
   val packageName = "foo.bar"
   val mainClassName = "Main"
@@ -31,8 +31,7 @@ class ForkProcessSpec {
   }
 
   val dependencies = Map.empty[String, Set[String]]
-  val runnableProject = Map(
-    TestUtil.RootProject -> Map("A.scala" -> ArtificialSources.`A.scala`))
+  val runnableProject = Map(TestUtil.RootProject -> Map("A.scala" -> ArtificialSources.`A.scala`))
 
   private def run(cwd: Path, args: Array[String])(op: (Int, List[(String, String)]) => Unit): Unit =
     TestUtil.checkAfterCleanCompilation(runnableProject, dependencies) { state =>
@@ -40,7 +39,7 @@ class ForkProcessSpec {
       val project = TestUtil.getProject(TestUtil.RootProject, state)
       val env = JavaEnv.default
       val classpath = project.classpath
-      val config = ForkProcess(env, classpath)
+      val config = JavaProcess(env, classpath)
       val logger = new RecordingLogger
       val userEnv = TestUtil.runAndTestProperties
       val exitCode = config.runMain(cwdPath, s"$packageName.$mainClassName", args, logger, userEnv)
@@ -77,7 +76,7 @@ class ForkProcessSpec {
           case ("error", msg) => msg.contains(nonExisting)
           case _ => false
         }
-        assertEquals(ForkProcess.EXIT_ERROR, exitCode.toLong)
+        assertEquals(Process.EXIT_ERROR, exitCode.toLong)
         assert(messages.exists(expected), s"Couldn't find expected error messages in $messages")
     }
   }

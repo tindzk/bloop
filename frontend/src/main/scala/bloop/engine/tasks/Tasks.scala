@@ -4,7 +4,7 @@ import bloop.cli.ExitStatus
 import bloop.config.Config
 import bloop.engine.caches.ResultsCache
 import bloop.engine.{Dag, Leaf, Parent, State}
-import bloop.exec.{ForkProcess, Process}
+import bloop.exec.{JavaProcess, Process}
 import bloop.io.AbsolutePath
 import bloop.logging.BspLogger
 import bloop.reporter.{BspReporter, LogReporter, Problem, Reporter, ReporterConfig}
@@ -280,7 +280,7 @@ object Tasks {
     projectsToTest.foreach { project =>
       val projectName = project.name
       val projectTestArgs = project.testOptions.arguments
-      val forkProcess = ForkProcess(project.javaEnv, project.classpath)
+      val forkProcess = JavaProcess(project.javaEnv, project.classpath)
       val testLoader = forkProcess.toExecutionClassLoader(Some(TestInternals.filteredLoader))
       val frameworks = project.testFrameworks
         .flatMap(f => TestInternals.loadFramework(testLoader, f.names, logger))
@@ -359,7 +359,7 @@ object Tasks {
           fqn: String,
           args: Array[String]): Task[State] = Task {
     val classpath = project.classpath
-    val processConfig = ForkProcess(project.javaEnv, classpath)
+    val processConfig = JavaProcess(project.javaEnv, classpath)
     val exitCode = processConfig.runMain(cwd, fqn, args, state.logger, state.commonOptions.env)
     val exitStatus = {
       if (exitCode == Process.EXIT_OK) ExitStatus.Ok

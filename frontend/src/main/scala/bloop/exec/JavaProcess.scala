@@ -17,20 +17,20 @@ import bloop.logging.{Logger, ProcessLogger}
  * @param javaEnv   The configuration describing how to start the new JVM.
  * @param classpath The full classpath with which the code should be executed.
  */
-final case class ForkProcess(javaEnv: JavaEnv, classpath: Array[AbsolutePath]) {
+final case class JavaProcess(javaEnv: JavaEnv, classpath: Array[AbsolutePath]) {
 
   /**
-   * Creates a `ClassLoader` from the classpath of this `ForkProcess`.
+   * Creates a `ClassLoader` from the classpath of this `JavaProcess`.
    *
    * @param parent A parent classloader
-   * @return A classloader constructed from the classpath of this `ForkProcess`.
+   * @return A classloader constructed from the classpath of this `JavaProcess`.
    */
   def toExecutionClassLoader(parent: Option[ClassLoader]): ClassLoader = {
     def makeNew(parent: Option[ClassLoader]): ClassLoader = {
       val classpathEntries = classpath.map(_.underlying.toUri.toURL)
       new URLClassLoader(classpathEntries, parent.orNull)
     }
-    ForkProcess.classLoaderCache.computeIfAbsent(parent, makeNew)
+    JavaProcess.classLoaderCache.computeIfAbsent(parent, makeNew)
   }
 
   /**
@@ -69,7 +69,7 @@ final case class ForkProcess(javaEnv: JavaEnv, classpath: Array[AbsolutePath]) {
   }
 }
 
-object ForkProcess {
+object JavaProcess {
 
   private val classLoaderCache: ConcurrentHashMap[Option[ClassLoader], ClassLoader] =
     new ConcurrentHashMap

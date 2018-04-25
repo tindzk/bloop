@@ -4,7 +4,7 @@ import bloop.cli.ExitStatus
 import bloop.config.Config
 import bloop.engine.caches.ResultsCache
 import bloop.engine.{Dag, Leaf, Parent, State}
-import bloop.exec.ForkProcess
+import bloop.exec.{ForkProcess, Process}
 import bloop.io.AbsolutePath
 import bloop.logging.BspLogger
 import bloop.reporter.{BspReporter, LogReporter, Problem, Reporter, ReporterConfig}
@@ -362,7 +362,7 @@ object Tasks {
     val processConfig = ForkProcess(project.javaEnv, classpath)
     val exitCode = processConfig.runMain(cwd, fqn, args, state.logger, state.commonOptions.env)
     val exitStatus = {
-      if (exitCode == ForkProcess.EXIT_OK) ExitStatus.Ok
+      if (exitCode == Process.EXIT_OK) ExitStatus.Ok
       else ExitStatus.UnexpectedError
     }
 

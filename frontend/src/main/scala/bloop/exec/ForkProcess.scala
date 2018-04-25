@@ -50,7 +50,7 @@ final case class ForkProcess(javaEnv: JavaEnv, classpath: Array[AbsolutePath]) {
               logger: Logger,
               env: Properties,
               extraClasspath: Array[AbsolutePath] = Array.empty): Int = {
-    import scala.collection.JavaConverters.{propertiesAsScalaMap, mapAsJavaMapConverter}
+    import scala.collection.JavaConverters.propertiesAsScalaMap
     val fullClasspath = classpath ++ extraClasspath
 
     val java = javaEnv.javaHome.resolve("bin").resolve("java")
@@ -65,23 +65,7 @@ final case class ForkProcess(javaEnv: JavaEnv, classpath: Array[AbsolutePath]) {
     logger.debug(s"  command     = '${cmd.mkString(" ")}'")
     logger.debug(s"  cwd         = '$cwd'")
 
-    if (!Files.exists(cwd.underlying)) {
-      logger.error(s"Couldn't start the forked JVM because '$cwd' doesn't exist.")
-      ForkProcess.EXIT_ERROR
-    } else {
-      val processBuilder = new ProcessBuilder(cmd: _*)
-      processBuilder.directory(cwd.toFile)
-      val processEnv = processBuilder.environment()
-      processEnv.clear()
-      processEnv.putAll(propertiesAsScalaMap(env).asJava)
-      val process = processBuilder.start()
-      val processLogger = new ProcessLogger(logger, process)
-      processLogger.start()
-      val exitCode = process.waitFor()
-      logger.debug(s"Forked JVM exited with code: $exitCode")
-
-      exitCode
-    }
+    Process.run(cwd, cmd, propertiesAsScalaMap(env).toMap, logger)
   }
 }
 
@@ -89,10 +73,4 @@ object ForkProcess {
 
   private val classLoaderCache: ConcurrentHashMap[Option[ClassLoader], ClassLoader] =
     new ConcurrentHashMap
-
-  /** The code returned after a successful execution. */
-  final val EXIT_OK = 0
-
-  /** The code returned after the execution errored. */
-  final val EXIT_ERROR = 1
 }

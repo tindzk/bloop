@@ -11,6 +11,10 @@ object ConfigEncoders {
     override final def apply(a: Path): Json = Json.fromString(a.toString)
   }
 
+  implicit val platformConfigEncoder: RootEncoder[Platform] = new RootEncoder[Platform] {
+    override final def apply(platform: Platform): Json = Json.fromString(platform.name)
+  }
+
   implicit val javaConfigEncoder: ObjectEncoder[Java] = deriveEncoder
   implicit val jvmConfigEncoder: ObjectEncoder[Jvm] = deriveEncoder
   implicit val testFrameworkConfigEncoder: ObjectEncoder[TestFramework] = deriveEncoder

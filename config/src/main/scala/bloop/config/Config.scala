@@ -45,6 +45,22 @@ object Config {
     private[bloop] val empty: Scala = Scala("", "", "", Array(), Array())
   }
 
+  sealed abstract class Platform(val name: String)
+  object Platform {
+    private[bloop] val default: Platform = JVM
+
+    case object JS extends Platform("JS")
+    case object JVM extends Platform("JVM")
+    case object Native extends Platform("Native")
+
+    def apply(platform: String): Platform = platform match {
+      case JS.name => JS
+      case JVM.name => JVM
+      case Native.name => Native
+      case _ => throw new IllegalArgumentException(s"Unknown platform: '$platform'")
+    }
+  }
+
   case class Project(
       name: String,
       directory: Path,
@@ -57,13 +73,15 @@ object Config {
       `scala`: Scala,
       jvm: Jvm,
       java: Java,
-      test: Test
+      test: Test,
+      platform: Platform
   )
 
   object Project {
     // FORMAT: OFF
     private[bloop] val empty: Project =
-      Project("", emptyPath, Array(), Array(), Array(), ClasspathOptions.empty, emptyPath, emptyPath, Scala.empty, Jvm.empty, Java.empty, Test.empty)
+      Project("", emptyPath, Array(), Array(), Array(), ClasspathOptions.empty, emptyPath,
+        emptyPath, Scala.empty, Jvm.empty, Java.empty, Test.empty, Platform.default)
     // FORMAT: ON
   }
 

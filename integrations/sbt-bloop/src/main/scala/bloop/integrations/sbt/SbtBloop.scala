@@ -102,6 +102,9 @@ object PluginImplementation {
     import Compat._
     import sbt.{Task, Defaults, State}
 
+    private final val ScalaNativePluginLabel = "scala.scalanative.sbtplugin.ScalaNativePlugin"
+    private final val ScalaJsPluginLabel = "org.scalajs.sbtplugin.ScalaJSPlugin"
+
     lazy val bloopTargetDir: Def.Initialize[File] = Def.setting {
       val project = Keys.thisProject.value
       val bloopConfigDir = BloopKeys.bloopConfigDir.value
@@ -243,6 +246,14 @@ object PluginImplementation {
 
       val javacOptions = Keys.javacOptions.value.toArray
       val (javaHome, javaOptions) = javaConfiguration.value
+
+      val platform = {
+        val pluginLabels = project.autoPlugins.map(_.label).toSet
+        if (pluginLabels.contains(ScalaNativePluginLabel)) Config.Platform.Native
+        else if (pluginLabels.contains(ScalaJsPluginLabel)) Config.Platform.JS
+        else Config.Platform.JVM
+      }
+
       val outFile = bloopConfigDir / s"$projectName.json"
 
       // Force source generators on this task manually
@@ -255,7 +266,7 @@ object PluginImplementation {
         val java = Config.Java(javacOptions)
         val `scala` = Config.Scala(scalaOrg, scalaName, scalaVersion, scalacOptions, allScalaJars)
         val jvm = Config.Jvm(Some(javaHome.toPath), javaOptions.toArray)
-        val project = Config.Project(projectName, baseDirectory, sourceDirs, dependenciesAndAggregates, classpath, classpathOptions, out, classesDir, `scala`, jvm, java, testOptions)
+        val project = Config.Project(projectName, baseDirectory, sourceDirs, dependenciesAndAggregates, classpath, classpathOptions, out, classesDir, `scala`, jvm, java, testOptions, platform)
         Config.File(Config.File.LatestVersion, project)
       }
       // format: ON

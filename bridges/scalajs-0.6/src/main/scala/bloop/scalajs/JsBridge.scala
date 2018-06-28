@@ -8,15 +8,21 @@ import org.scalajs.core.tools.io.{
   AtomicWritableFileVirtualJSFile,
   FileVirtualBinaryFile,
   FileVirtualScalaJSIRFile,
-  VirtualJarFile
+  VirtualJSFile,
+  VirtualJarFile,
+  MemVirtualJSFile,
+  FileVirtualJSFile
 }
 import org.scalajs.core.tools.linker.{ModuleInitializer, StandardLinker}
 import org.scalajs.core.tools.logging.{Level, Logger => JsLogger}
 import bloop.Project
 import bloop.config.Config.{JsConfig, LinkerMode, ModuleKindJS}
 import bloop.logging.{Logger => BloopLogger}
+import org.scalajs.core.tools.jsdep.ResolvedJSDependency
 import org.scalajs.core.tools.linker.backend.ModuleKind
 import org.scalajs.core.tools.sem.Semantics
+import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
+import org.scalajs.testadapter.TestAdapter
 
 object JsBridge {
   private class Logger(logger: BloopLogger) extends JsLogger {
@@ -46,7 +52,7 @@ object JsBridge {
   def link(
       config: JsConfig,
       project: Project,
-      mainClass: String,
+      mainClass: Option[String],
       target: Path,
       logger: BloopLogger
   ): Unit = {
@@ -69,7 +75,8 @@ object JsBridge {
     val enableOptimizer = config.mode == LinkerMode.Release
     val jarFiles = classpath.filter(isJarFile).map(toIrJar)
     val scalajsIRFiles = jarFiles.flatMap(_.jar.sjsirFiles)
-    val initializer = ModuleInitializer.mainMethodWithArgs(mainClass, "main")
+    val initializers =
+      mainClass.toList.map(cls => ModuleInitializer.mainMethodWithArgs(cls, "main"))
     val jsConfig = StandardLinker
       .Config()
       .withOptimizer(enableOptimizer)
@@ -80,9 +87,41 @@ object JsBridge {
 
     StandardLinker(jsConfig).link(
       irFiles = classpathIrFiles ++ scalajsIRFiles,
-      moduleInitializers = Seq(initializer),
+      moduleInitializers = initializers,
       output = AtomicWritableFileVirtualJSFile(target.toFile),
       logger = new Logger(logger)
     )
+  }
+
+  /** @return (list of frameworks, function to close test adapter) */
+  def testFrameworks(frameworkNames: Array[Array[String]],
+                     jsPath: Path,
+                     projectPath: Path,
+                     logger: BloopLogger): (Array[sbt.testing.Framework], () => Unit) = {
+    // TODO It would be cleaner if the CWD of the Node process could be set
+    val quotedPath = projectPath.toString.replaceAll("'", "\\'")
+
+    class MyEnv(config: JSDOMNodeJSEnv.Config) extends JSDOMNodeJSEnv(config) {
+      protected override def customInitFiles(): Seq[VirtualJSFile] =
+        Seq(
+          new MemVirtualJSFile("changePath.js")
+            .withContent(s"require('process').chdir('$quotedPath');"))
+    }
+
+    val nodeModules = projectPath.resolve("node_modules").toString
+    logger.debug("Node.js module path: " + nodeModules)
+
+    val env = new MyEnv(
+      JSDOMNodeJSEnv.Config().withEnv(Map("NODE_PATH" -> nodeModules))
+    ).loadLibs(Seq(ResolvedJSDependency.minimal(new FileVirtualJSFile(jsPath.toFile))))
+
+    val config = TestAdapter.Config().withLogger(new Logger(logger))
+    val adapter = new TestAdapter(env, config)
+    val result = adapter
+      .loadFrameworks(frameworkNames.map(_.toList).toList)
+      .flatMap(_.toList)
+      .toArray
+
+    (result, () => adapter.close())
   }
 }

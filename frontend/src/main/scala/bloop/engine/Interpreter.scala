@@ -200,7 +200,7 @@ object Interpreter {
           val cwd = cmd.cliOptions.common.workingPath
           compileAnd(cmd, state, project, false, sequential, "`test`") { state =>
             val handler = new LoggingEventHandler(state.logger)
-            Tasks.test( state, project, cwd, cmd.includeDependencies, cmd.args, testFilter, handler)
+            Tasks.test(state, project, cwd, cmd.includeDependencies, cmd.args, testFilter, handler)
           }
         }
 
@@ -300,7 +300,7 @@ object Interpreter {
           case Some(msg) => Task.now(state.withError(msg, ExitStatus.LinkingError))
           case None =>
             val config = config0.copy(mode = getOptimizerMode(cmd.optimize, config0.mode))
-            toolchain.link(config, project, mainClass, target, state.logger) map {
+            toolchain.link(config, project, Some(mainClass), target, state.logger) map {
               case scala.util.Success(_) =>
                 state.withInfo(s"Generated JavaScript file '${target.syntax}'")
               case scala.util.Failure(t) =>

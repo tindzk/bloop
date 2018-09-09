@@ -3,24 +3,22 @@ package bloop.engine.tasks
 import java.nio.file.Path
 
 import bloop.Project
-import bloop.cli.ExitStatus
 import bloop.config.Config
 import bloop.config.Config.JsConfig
-import bloop.engine.State
-import bloop.exec.Forker
 import bloop.internal.build.BuildInfo
 import bloop.io.AbsolutePath
 import bloop.logging.Logger
 import monix.eval.Task
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 final class ScalaJsToolchain private (classLoader: ClassLoader) {
   private val paramTypesLink =
     classOf[JsConfig] :: classOf[Project] :: classOf[Option[String]] :: classOf[Path] :: classOf[
       Logger] :: Nil
   private val paramTypesTestFrameworks =
-    classOf[List[List[String]]] :: classOf[Path] :: classOf[Path] :: classOf[Logger] :: Nil
+    classOf[List[List[String]]] :: classOf[Path] :: classOf[Path] :: classOf[Logger] :: classOf[
+      java.lang.Boolean] :: Nil
 
   /**
    * Compile down to JavaScript using Scala.js' toolchain.
@@ -53,11 +51,17 @@ final class ScalaJsToolchain private (classLoader: ClassLoader) {
   def testFrameworks(frameworkNames: List[List[String]],
                      jsPath: AbsolutePath,
                      projectPath: AbsolutePath,
-                     logger: Logger): (List[sbt.testing.Framework], ScalaJsToolchain.Dispose) = {
+                     logger: Logger,
+                     jsdom: Boolean): (List[sbt.testing.Framework], ScalaJsToolchain.Dispose) = {
     val bridgeClazz = classLoader.loadClass("bloop.scalajs.JsBridge")
     val method = bridgeClazz.getMethod("testFrameworks", paramTypesTestFrameworks: _*)
     method
-      .invoke(null, frameworkNames, jsPath.underlying, projectPath.underlying, logger)
+      .invoke(null,
+              frameworkNames,
+              jsPath.underlying,
+              projectPath.underlying,
+              logger,
+              Boolean.box(jsdom))
       .asInstanceOf[(List[sbt.testing.Framework], ScalaJsToolchain.Dispose)]
   }
 }

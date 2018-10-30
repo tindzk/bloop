@@ -530,14 +530,14 @@ object BuildImplementation {
         val isWindows: Boolean =
           System.getProperty("os.name").toLowerCase(Locale.ENGLISH).contains("windows")
 
-        if (!isWindows) {
+/*        if (!isWindows) {
           // Twitter projects are not added to the community build under Windows
           val cmd = "bash" :: BuildKeys.twitterDodo.value.getAbsolutePath :: "--no-test" :: "finagle" :: Nil
           val dodoSetUp = Process(cmd, buildIntegrationsBase).!
           if (dodoSetUp != 0)
             throw new MessageOnlyException(
               "Failed to publish locally dodo snapshots for twitter projects.")
-        }
+        }*/
 
         val globalPluginsBase = buildIntegrationsBase / "global"
         val globalSettingsBase = globalPluginsBase / "settings"

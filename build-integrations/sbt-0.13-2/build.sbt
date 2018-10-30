@@ -1,5 +1,5 @@
 val Lichess = Integrations.Lichess
-val integrations = List(Lichess)
+val integrations = List(/*Lichess*/)
 
 ivyLoggingLevel in ThisBuild := UpdateLogging.Quiet
 
@@ -12,14 +12,14 @@ val dummy = project
     enableIndexCreation := true,
     integrationIndex := {
       Map(
-        "lichess" -> bloopConfigDir.in(Lichess).value
+//        "lichess" -> bloopConfigDir.in(Lichess).value
       )
     },
     cleanAllBuilds := {
       // Do it sequentially, there seems to be a race condition in windows
       Def.sequential(
-        cleanAllBuilds,
-        clean.in(Lichess)
+        cleanAllBuilds //,
+//        clean.in(Lichess)
       ).value
     }
   )

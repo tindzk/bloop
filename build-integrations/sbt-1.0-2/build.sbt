@@ -11,16 +11,16 @@ val dummy = project
     enableIndexCreation := true,
     integrationIndex := {
       Map(
-        "scalajs-1" -> bloopConfigDir.in(Scalajs1).in(Compile).value,
-        "atlas" -> bloopConfigDir.in(Atlas).in(Compile).value,
+//        "scalajs-1" -> bloopConfigDir.in(Scalajs1).in(Compile).value,
+//        "atlas" -> bloopConfigDir.in(Atlas).in(Compile).value,
       )
     },
     cleanAllBuilds := {
       // Do it sequentially, there seems to be a race condition in windows
       Def.sequential(
         cleanAllBuilds,
-        clean.in(Scalajs1),
-        clean.in(Atlas),
+//        clean.in(Scalajs1),
+//        clean.in(Atlas),
       )
     }
   )

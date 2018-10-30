@@ -1,6 +1,6 @@
 val GuardianGrid = Integrations.GuardianGrid
 
-val integrations = List(GuardianGrid)
+val integrations = List(/*GuardianGrid*/)
 
 val dummy = project
   .in(file("."))
@@ -10,13 +10,13 @@ val dummy = project
     enableIndexCreation := true,
     integrationIndex := {
       Map(
-        "grid" -> bloopConfigDir.in(GuardianGrid).in(Compile).value,
+//        "grid" -> bloopConfigDir.in(GuardianGrid).in(Compile).value,
       )
     },
     cleanAllBuilds := {
       Def.sequential(
         cleanAllBuilds,
-        clean.in(GuardianGrid)
+//        clean.in(GuardianGrid)
       )
     }
   )

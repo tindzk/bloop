@@ -55,9 +55,9 @@ DEFAULT_IVY_HOME="$HOME/.ivy2"
 ivy_home=${IVY_HOME:-$DEFAULT_IVY_HOME}
 
 # Actual DAG list for building (order is important)
-projects=( "util" "scroogecore" "finagle" "scrooge" "twitter-server" "finatra" )
+projects=( "util" ) # "scroogecore" "finagle" "scrooge" "twitter-server" "finatra" )
 # Validation project list
-project_list=( "util" "finagle" "scrooge" "twitter-server" "finatra" )
+project_list=( "util" ) # "finagle" "scrooge" "twitter-server" "finatra" )
 
 # Initialize defaults
 build_all=false         # build all projects in the DAG list

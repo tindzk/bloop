@@ -13,15 +13,15 @@ val dummy = project
     enableIndexCreation := true,
     integrationIndex := {
       Map(
-        "scalding" -> bloopConfigDir.in(Scalding).value
+        // "scalding" -> bloopConfigDir.in(Scalding).value
         //"summingbird" -> bloopConfigDir.in(SummingBird).value
       )
     },
     cleanAllBuilds := {
       // Do it sequentially, there seems to be a race condition in windows
       Def.sequential(
-        cleanAllBuilds,
-        clean.in(Scalding)
+        cleanAllBuilds //,
+        //clean.in(Scalding)
         //clean.in(SummingBird)
       ).value
     }

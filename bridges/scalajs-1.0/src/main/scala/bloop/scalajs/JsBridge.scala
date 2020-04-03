@@ -1,17 +1,21 @@
 package bloop.scalajs
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 
 import bloop.config.Config.{JsConfig, LinkerMode, ModuleKindJS}
 import bloop.data.Project
 import bloop.logging.{DebugFilter, Logger => BloopLogger}
 import bloop.scalajs.jsenv.{JsDomNodeJsEnv, NodeJSConfig, NodeJSEnv}
-import org.scalajs.io.{AtomicWritableFileVirtualBinaryFile, MemVirtualBinaryFile}
-import org.scalajs.jsenv.Input
-import org.scalajs.linker.irio.{FileScalaJSIRContainer, IRFileCache}
-import org.scalajs.linker.{LinkerOutput, ModuleInitializer, ModuleKind, Semantics, StandardLinker}
 import org.scalajs.logging.{Level, Logger => JsLogger}
-import org.scalajs.testadapter.TestAdapter
+import org.scalajs.linker.{PathIRContainer, PathIRFile, PathOutputFile, StandardImpl}
+import org.scalajs.linker.interface.{ModuleKind => ScalaJSModuleKind, _}
+import org.scalajs.jsenv.Input
+import org.scalajs.testing.adapter.{TestAdapter, TestAdapterInitializer}
+import scala.collection.JavaConverters._
+
+import scala.concurrent.{Await, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
 
 /**
  * Defines operations provided by the Scala.JS 1.x toolchain.
@@ -36,7 +40,6 @@ object JsBridge {
         case Level.Info => logger.info(message)
         case Level.Debug => logger.debug(message)(filter)
       }
-    override def success(message: => String): Unit = logger.info(message)
     override def trace(t: => Throwable): Unit = logger.trace(t)
   }
 
@@ -57,13 +60,17 @@ object JsBridge {
     }
 
     val moduleKind = config.kind match {
-      case ModuleKindJS.NoModule => ModuleKind.NoModule
-      case ModuleKindJS.CommonJSModule => ModuleKind.CommonJSModule
+      case ModuleKindJS.NoModule => ScalaJSModuleKind.NoModule
+      case ModuleKindJS.CommonJSModule => ScalaJSModuleKind.CommonJSModule
     }
 
-    val cache = new IRFileCache().newCache
-    val irClasspath = FileScalaJSIRContainer.fromClasspath(classpath.map(_.toFile))
-    val irFiles = cache.cached(irClasspath)
+    val classpaths =
+      classpath.toList.flatMap(p => Files.walk(p).iterator().asScala.filter(_.endsWith(".sjsir")))
+
+    val cache = StandardImpl.irFileCache().newCache
+    val irFilesFuture = Future.sequence(classpaths.map(PathIRFile(_)))
+    val irContainersPairs = PathIRContainer.fromClasspath(classpath)
+    val libraryIrsFuture = irContainersPairs.flatMap(pair => cache.cached(pair._1))
 
     val moduleInitializers = mainClass match {
       case Some(mainClass) if runMain =>
@@ -76,7 +83,6 @@ object JsBridge {
         } else {
           // There is no main class, install the test module initializers
           logger.debug(s"Setting up test module initializers for ${project}")
-          import org.scalajs.testadapter.TestAdapterInitializer
           List(
             ModuleInitializer.mainMethod(
               TestAdapterInitializer.ModuleClassName,
@@ -86,21 +92,23 @@ object JsBridge {
         }
     }
 
-    val output = LinkerOutput(new AtomicWritableFileVirtualBinaryFile(target.toFile))
-    val jsConfig = StandardLinker
-      .Config()
+    val output = LinkerOutput(PathOutputFile(target))
+    val jsConfig = StandardConfig()
       .withOptimizer(enableOptimizer)
       .withClosureCompilerIfAvailable(enableOptimizer)
       .withSemantics(semantics)
       .withModuleKind(moduleKind)
       .withSourceMap(config.emitSourceMaps)
 
-    StandardLinker(jsConfig).link(
-      irFiles = irFiles,
-      moduleInitializers = moduleInitializers,
-      output = output,
-      logger = new Logger(logger)
-    )
+    val resultFuture = for {
+      irFiles <- irFilesFuture
+      libraryIRs <- libraryIrsFuture
+      _ <- StandardImpl
+        .linker(jsConfig)
+        .link(irFiles ++ libraryIRs, moduleInitializers, output, new Logger(logger))
+    } yield ()
+
+    Await.result(resultFuture, Duration.Inf)
   }
 
   /** @return (list of frameworks, function to close test adapter) */
@@ -114,24 +122,19 @@ object JsBridge {
       env: Map[String, String]
   ): (List[sbt.testing.Framework], () => Unit) = {
     implicit val debugFilter: DebugFilter = DebugFilter.Test
-    val config = NodeJSConfig().withExecutable(nodePath).withCwd(Some(baseDirectory)).withEnv(env)
+    val nodeModules = baseDirectory.resolve("node_modules").toString
+    logger.debug("Node.js module path: " + nodeModules)
+    val fullEnv = Map("NODE_PATH" -> nodeModules) ++ env
+    val config =
+      NodeJSConfig().withExecutable(nodePath).withCwd(Some(baseDirectory)).withEnv(fullEnv)
     val nodeEnv =
       if (!jsdom) new NodeJSEnv(logger, config)
       else new JsDomNodeJsEnv(logger, config)
 
-    val outputJsContents = {
-      val contents = java.nio.file.Files.readAllBytes(jsPath)
-      MemVirtualBinaryFile(jsPath.toString, contents)
-    }
-
-    // The order of the scripts mandates the load order in the js runtime
-    val inputs = List(outputJsContents)
-    val nodeModules = baseDirectory.resolve("node_modules").toString
-    logger.debug("Node.js module path: " + nodeModules)
-    val fullEnv = Map("NODE_PATH" -> nodeModules) ++ env
-
+    // The order of the scripts mandates the load order in the JavaScript runtime
+    val input = Seq(Input.Script(jsPath))
     val testConfig = TestAdapter.Config().withLogger(new Logger(logger))
-    val adapter = new TestAdapter(nodeEnv, Input.ScriptsToLoad(inputs), testConfig)
+    val adapter = new TestAdapter(nodeEnv, input, testConfig)
     val result = adapter.loadFrameworks(frameworkNames).flatMap(_.toList)
     (result, () => adapter.close())
   }

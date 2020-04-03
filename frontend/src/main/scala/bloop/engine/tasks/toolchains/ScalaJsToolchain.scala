@@ -1,7 +1,6 @@
 package bloop.engine.tasks.toolchains
 
 import java.lang.reflect.InvocationTargetException
-import java.net.URLClassLoader
 import java.nio.file.Path
 
 import bloop.DependencyResolution
@@ -11,7 +10,7 @@ import bloop.data.Project
 import bloop.internal.build.BuildInfo
 import bloop.io.AbsolutePath
 import bloop.logging.Logger
-import bloop.testing.{DiscoveredTestFrameworks, TestInternals}
+import bloop.testing.DiscoveredTestFrameworks
 import monix.eval.Task
 
 import scala.util.Try
@@ -128,20 +127,51 @@ object ScalaJsToolchain extends ToolchainCompanion[ScalaJsToolchain] {
     else sys.error(s"Expected compatible Scala.js version [0.6, 1.0], $version given")
   }
 
-  override def getPlatformData(platform: Platform): Option[PlatformData] = {
-    val artifactName = artifactNameFrom(platform.config.version)
-    val platformVersion = platform.config.version
-    val scalaVersion = DependencyResolution.majorMinorVersion(BuildInfo.scalaVersion)
+  /** Determine additional version-specific artefacts */
+  private def scalaJsArtifacts(
+      platformVersion: String,
+      scalaVersion: String
+  ): List[DependencyResolution.Artifact] = {
+    // Needed for platformVersion >= 0.6.29
+    val testBridge =
+      DependencyResolution.Artifact(
+        "org.scala-js",
+        s"scalajs-test-bridge_$scalaVersion",
+        platformVersion
+      )
 
-    val artifacts = List(
+    if (platformVersion.startsWith("0.6"))
+      List(
+        DependencyResolution
+          .Artifact("org.scala-js", s"scalajs-tools_$scalaVersion", platformVersion)
+      ) ++ (if (Try(platformVersion.split('.').toList.last.toInt).toOption.exists(_ >= 29))
+              Seq(testBridge)
+            else Seq())
+    else
+      List(
+        DependencyResolution
+          .Artifact("org.scala-js", s"scalajs-linker_$scalaVersion", platformVersion),
+        DependencyResolution
+          .Artifact("org.scala-js", s"scalajs-env-nodejs_$scalaVersion", platformVersion),
+        DependencyResolution
+          .Artifact("org.scala-js", s"scalajs-env-jsdom-nodejs_$scalaVersion", "1.0.0"),
+        DependencyResolution
+          .Artifact("org.scala-js", s"scalajs-logging_$scalaVersion", platformVersion),
+        testBridge
+      )
+  }
+
+  override def getPlatformData(platform: Platform): Option[PlatformData] = {
+    val platformVersion = platform.config.version
+    val artifactName = artifactNameFrom(platformVersion)
+    val scalaVersion = DependencyResolution.majorMinorVersion(BuildInfo.scalaVersion)
+    val sharedArtifacts = List(
       DependencyResolution.Artifact(BuildInfo.organization, artifactName, BuildInfo.version),
       DependencyResolution
-        .Artifact("org.scala-js", s"scalajs-tools_$scalaVersion", platformVersion),
-      DependencyResolution
         .Artifact("org.scala-js", s"scalajs-sbt-test-adapter_$scalaVersion", platformVersion),
-      DependencyResolution
-        .Artifact("org.scala-js", s"scalajs-js-envs_$scalaVersion", platformVersion)
+      DependencyResolution.Artifact("org.scala-js", s"scalajs-js-envs_$scalaVersion", "1.0.0")
     )
+    val artifacts = sharedArtifacts ++ scalaJsArtifacts(platformVersion, scalaVersion)
 
     Some(PlatformData(artifacts, platform.config.toolchain))
   }
